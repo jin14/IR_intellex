@@ -5,6 +5,7 @@ import os
 import json
 import getopt
 import sys
+from util import tf,L2norm
 
 stemmer = PorterStemmer()
 def clean_content(text):
@@ -44,6 +45,9 @@ def make_dictionary(directory,dictionary_file,postings_file):
     A_title = {}
     A_jurisdiction = {}
     A_court = {}
+    tfs = {}
+    total_df = len(filenames)
+    #print(total_df)
     
     for filename in filenames:
         tree = ET.parse(directory+filename)
@@ -81,6 +85,7 @@ def make_dictionary(directory,dictionary_file,postings_file):
         #content (positional indexes)
         if 'content' in d.keys():
             content = clean_content(d['content'].text)
+            contentsize = len(content)
             for index,term in enumerate(content):
                 if term not in A_content: #new term, new docid
                     A_content[term] = {docid:[index]}
@@ -91,6 +96,24 @@ def make_dictionary(directory,dictionary_file,postings_file):
 
                     else: #docid exists
                         A_content[term][docid].append(index)
+            
+            length = []
+            for term in A_content:
+                if docid in A_content[term]:
+                    if term not in tfs:
+                        tfs[term] = {}
+                        tfreq = tf(len(A_content[term][docid])) #log term frequency
+                        tfs[term][docid] = tfreq
+                        length.append(tfreq)
+                    else:
+                        tfreq = tf(len(A_content[term][docid])) #log term frequency
+                        tfs[term][docid] = tfreq
+                        length.append(tfreq)
+
+            for term in tfs:
+                if docid in tfs[term]:
+                    tfs[term][docid] = tfs[term][docid]/L2norm(length) #normalisation
+
                     
         
         #title (positional indexes)
@@ -104,7 +127,7 @@ def make_dictionary(directory,dictionary_file,postings_file):
                     if docid not in A_title[term]:
                         A_title[term][docid] = [index]
                     else:
-                        A_content[term][docid].append(index)
+                        A_title[term][docid].append(index)
                     
         
         #jurisdiction
@@ -125,6 +148,18 @@ def make_dictionary(directory,dictionary_file,postings_file):
                 A_court[court].append(docid)
                 
             
+    
+    #idf
+    idfs = {}
+    
+    for term in A_content:
+        df = len(A_content[term])
+        print(df)
+        idfs[term] = idf(df,total_df)
+    
+    
+    
+    
     dictionary = open(dictionary_file,'w')
     postings = open(postings_file,'w')
     index = {}
@@ -150,7 +185,6 @@ def make_dictionary(directory,dictionary_file,postings_file):
                         
         else:
             for term,docids in result[key].items():
-                print(term)
                 if term not in index:
                     start = postings.tell()
                     posting = ','.join(map(str,docids))
@@ -169,6 +203,7 @@ def make_dictionary(directory,dictionary_file,postings_file):
     dictionary.close()
     postings.close()
 
+    return idfs
 
 
 def usage():
