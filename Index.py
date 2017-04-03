@@ -123,11 +123,49 @@ def make_dictionary(directory,dictionary_file,postings_file):
                 A_court[court].append(docid)
                 
             
-    
     dictionary = open(dictionary_file,'w')
+    postings = open(postings_file,'w')
+    index = {}
     result = {'tags': A_tags, 'date_posted': A_dateposted, 'content': A_content, 'title': A_title, 'jur': A_jurisdiction, 'court': A_court}
-    json.dump(result,dictionary)
+    for key in result:
+
+        if key == 'content' or key == 'title':
+            for term,value in result[key].items():
+                for docid,position in result[key][term].items():
+                    if term not in index:
+                        start = postings.tell()
+                        posting = ','.join(map(str,result[key][term][docid]))
+                        posting = 's'+ str(docid) + ',' + posting
+                        postings.write(posting)
+                        index[term] = {str(key): start, str(key)+'len': len(posting)}
+                    else:
+                        start = postings.tell()
+                        posting = ','.join(map(str,result[key][term][docid]))
+                        posting = str(docid) + ',' + posting    
+                        postings.write(posting)
+                        index[term][str(key)] = start
+                        index[term][str(key)+'len'] = len(posting)
+                        
+        else:
+            for term,docids in result[key].items():
+                print(term)
+                if term not in index:
+                    start = postings.tell()
+                    posting = ','.join(map(str,docids))
+                    postings.write(posting)
+                    index[term] = {str(key):start, str(key)+'len': len(posting)}
+                else:
+                    start = postings.tell()
+                    posting = ','.join(map(str,docids))
+                    postings.write(posting)
+                    index[term][str(key)] = start
+                    index[term][str(key)+'len'] = len(posting)
+                    
+    
+    
+    json.dump(index,dictionary)
     dictionary.close()
+    postings.close()
 
 
 
