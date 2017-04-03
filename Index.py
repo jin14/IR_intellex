@@ -3,6 +3,8 @@ from nltk.stem.porter import PorterStemmer
 import xml.etree.ElementTree as ET
 import os
 import json
+import getopt
+import sys
 
 stemmer = PorterStemmer()
 def clean_content(text):
