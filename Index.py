@@ -16,9 +16,16 @@ def clean_content(text):
     text = text.replace('\n', ' ') #remove newline characters
     text = text.replace('\t',' ') # trim whitespaces including tabs etc
     text = text.replace('\xa0', ' ') #remove \xa0 (non-breaking space in latin)
-    text = [stemmer.stem(i).strip(chars) for i in text.split() if stemmer.stem(i).strip(chars)]
     
-    return text
+    result = []
+    for i in text.split():
+        try:
+            if stemmer.stem(i).strip(chars):
+                result.append(stemmer.stem(i).strip(chars))
+        except:
+            result.append(i)
+    
+    return result
 
 
 def stemmed_tags(tags):
@@ -199,7 +206,7 @@ def make_dictionary(directory,dictionary_file,postings_file,metadata_file):
     
     for term in A_content:
         df = len(A_content[term])
-        idfs[term] = idfs(df,total_df)
+        idfs[term] = idf(df,total_df)
     
     
     
