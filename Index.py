@@ -110,7 +110,7 @@ def make_dictionary(directory,dictionary_file,postings_file,metadata_file):
                     A_tags[tag] = [docid]
 
                 else:
-                    Atags[tag].append(docid)
+                    A_tags[tag].append(docid)
 
         
         
@@ -120,7 +120,7 @@ def make_dictionary(directory,dictionary_file,postings_file,metadata_file):
             if date not in A_dateposted:
                 A_dateposted[date] = [docid]
             else:
-                A_dataposted[date].append(docid)
+                A_dateposted[date].append(docid)
             
         
         
@@ -199,7 +199,7 @@ def make_dictionary(directory,dictionary_file,postings_file,metadata_file):
     
     for term in A_content:
         df = len(A_content[term])
-        idfs[term] = idf(df,total_df)
+        idfs[term] = idfs(df,total_df)
     
     
     
