@@ -253,3 +253,9 @@ for o, a in opts:
 if directory_of_documents == None or dictionary_file == None or postings_file == None or metadata_file == None:
     usage()
     sys.exit(2)
+
+start = time.time()
+print("Creating index...")
+make_dictionary(directory_of_documents,dictionary_file,postings_file,metadata_file)
+end = time.time()
+print("Time taken to index: " + str(end-start))
