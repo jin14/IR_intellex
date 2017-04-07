@@ -19,6 +19,7 @@ def clean_content(text):
     text = text.replace('\n', ' ') #remove newline characters
     text = text.replace('\t',' ') # trim whitespaces including tabs etc
     text = text.replace('\xa0', ' ') #remove \xa0 (non-breaking space in latin)
+    text = text.replace('\u20', ' ')
     
     result = []
     for i in text.split():
@@ -124,7 +125,7 @@ def make_dictionary1(directory,dictionary_file,postings_file,metadata_file):
                 if 'name' in elem.attrib:
                     if elem.attrib['name'] == 'document_id':
                         docid = int(elem.text)
-                        elem.clear()
+                        docids.append(docid)
                     
                     elif elem.attrib['name'] == 'tag':
                         A_tags = stemmed_tags_new(elem.itertext(),A_tags,docid)
@@ -226,7 +227,7 @@ def make_dictionary1(directory,dictionary_file,postings_file,metadata_file):
     postings = open(postings_file,'w')
     metadata = open(metadata_file,'w')
     
-    index = {'metadata':{}, 'content': {}, 'title': {} }
+    index = {'metadata':{}, 'content': {}, 'title': {}, 'docids':docids }
     
     #add in meta data
     index = storein_metadata(metadata,A_tags,index,'tags')
