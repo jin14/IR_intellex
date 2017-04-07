@@ -1,11 +1,14 @@
 import string
 from nltk.stem.porter import PorterStemmer
-import xml.etree.ElementTree as ET
+#import xml.etree.ElementTree as ET 127.96343898773193
+from lxml import etree as ET
+#import xml.etree.cElementTree as ET
 import os
 import json
 import getopt
 import sys
-from util import tf,L2norm
+from util import tf,L2norm,idf
+import time
 
 stemmer = PorterStemmer()
 def clean_content(text):
@@ -77,9 +80,22 @@ def store_title(posting_file,title,index,key):
             
     
     return index
+    
+def stemmed_tags_new(tags,d,docid):
+    for tag in tags:
+        words = tag.split()
+        words = [stemmer.stem(word.lower()) for word in words]
+        newtag = ' '.join(words)
+        if newtag:
+            if newtag not in d:
+                d[newtag] = [docid]
+            else:
+                d[newtag].append(docid)
+        
+    return d
 
 
-def make_dictionary(directory,dictionary_file,postings_file,metadata_file):
+def make_dictionary1(directory,dictionary_file,postings_file,metadata_file):
     
     filenames = os.listdir(directory)
     if directory[-1]!='/':
@@ -90,7 +106,7 @@ def make_dictionary(directory,dictionary_file,postings_file,metadata_file):
     A_dateposted = {}
     A_content = {}
     A_title = {}
-    A_jurisdiction = {}
+    A_jury = {}
     A_court = {}
     tfs = {}
     #idf
@@ -98,109 +114,104 @@ def make_dictionary(directory,dictionary_file,postings_file,metadata_file):
     total_df = len(filenames)
     #print(total_df)
     
-    for filename in filenames:
-        tree = ET.parse(directory+filename)
-        root = tree.getroot()
-        d = {}
-        for child in root:
-            key = child.attrib.get('name')
-            value = child
-            d[key] = value
+    with os.scandir(directory) as theFiles:
+
+        for filename in theFiles:
+            print(filename.name)
+            tree = ET.iterparse(directory+filename.name)
             
-        docid = int(d['document_id'].text)
-        
-        #tags
-        if 'tag' in d.keys():
-            tags = stemmed_tags(d['tag'])#get a list of tags
-            for tag in tags:
-                if tag not in A_tags:
-                    A_tags[tag] = [docid]
-
-                else:
-                    A_tags[tag].append(docid)
-
-        
-        
-        #dateposted
-        if 'date_posted' in d.keys():
-            date = d['date_posted'].text[:10] #get only the yyyy-mm-dd
-            if date not in A_dateposted:
-                A_dateposted[date] = [docid]
-            else:
-                A_dateposted[date].append(docid)
-            
-        
-        
-        #content (positional indexes)
-        if 'content' in d.keys():
-            content = clean_content(d['content'].text)
-            contentsize = len(content)
-            for index,term in enumerate(content):
-                if term not in A_content: #new term, new docid
-                    A_content[term] = {docid:{'index':[index],'tf':None}}
-
-                else: # term exists
-                    if docid not in A_content[term]: # if docid does not exists
-                        A_content[term][docid] = {'index':[index], 'tf':None}
-
-                    else: #docid exists
-                        A_content[term][docid]['index'].append(index)
-            
-            length = []
-            for term in A_content:
-                if docid in A_content[term]:
-                    if term not in tfs:
-                        tfs[term] = {}
-                        tfreq = tf(len(A_content[term][docid]['index'])) #log term frequency
-                        tfs[term][docid] = tfreq
-                        length.append(tfreq)
-                    else:
-                        tfreq = tf(len(A_content[term][docid]['index'])) #log term frequency
-                        tfs[term][docid] = tfreq
-                        length.append(tfreq)
-
-            for term in tfs:
-                if docid in tfs[term]:
-                    tfs[term][docid] = tfs[term][docid]/L2norm(length) #normalisation
-
-            
-            for term in A_content:
-                if docid in A_content[term]:
-                    A_content[term][docid]['tf'] = tfs[term][docid]
-        
-        #title (positional indexes)
-        if 'title' in d.keys():
-            title = clean_content(d['title'].text)
-            for index,term in enumerate(title):
-                if term not in A_title:
-                    A_title[term] = {docid:[index]}
-
-                else:
-                    if docid not in A_title[term]:
-                        A_title[term][docid] = [index]
-                    else:
-                        A_title[term][docid].append(index)
+            for event,elem in tree:
+                if 'name' in elem.attrib:
+                    if elem.attrib['name'] == 'document_id':
+                        docid = int(elem.text)
+                        elem.clear()
                     
-        
-        #jurisdiction
-        if 'jurisdiction' in d.keys():
-            jurisdiction = d['jurisdiction'][0].text
-            if jurisdiction not in A_jurisdiction:
-                A_jurisdiction[jurisdiction] = [docid]
-            else:
-                A_jurisdiction[jurisdiction].append(docid)
+                    elif elem.attrib['name'] == 'tag':
+                        A_tags = stemmed_tags_new(elem.itertext(),A_tags,docid)
+                        elem.clear()
+                        
+                    elif elem.attrib['name'] == 'date_posted':
+                        date = elem.text[:10]
+                        if date not in A_dateposted:
+                            A_dateposted[date] = [docid]
+                        else:
+                            A_dateposted[date].append(docid)
+                        
+                        elem.clear()
+                        
+                    
+                    elif elem.attrib['name'] == 'jurisdiction':
+                        for jury in elem.itertext():
+                            jury = jury.split()
+                            if jury:
+                                jury = jury[0]
+                                if jury not in A_jury:
+                                    A_jury[jury] = [docid]
+                                else:
+                                    A_jury[jury].append(docid)
+                                    
+                    elif elem.attrib['name'] == 'court':
+                        for court in elem.itertext():
+                            court = court.split()
+                            if court:
+                                court = court[0]
+                                if court not in A_court:
+                                    A_court[court] = [docid]
+                                else:
+                                    A_court[court].append(docid)
+                        
+                        elem.clear()
+                    
+                    elif elem.attrib['name'] == 'content':
+                        content = clean_content(elem.text)
+                        contentsize = len(content)
+                        for index,term in enumerate(content):
+                            if term not in A_content: #new term, new docid
+                                A_content[term] = {docid:{'index':[index],'tf':None}}
 
-        
-        #court
-        if 'court' in d.keys():
-            court = d['court'].text
-            if court not in A_court:
-                A_court[court] = [docid]
-            else:
-                A_court[court].append(docid)
-                
-            
-    
+                            else: # term exists
+                                if docid not in A_content[term]: # if docid does not exists
+                                    A_content[term][docid] = {'index':[index], 'tf':None}
+
+                                else: #docid exists
+                                    A_content[term][docid]['index'].append(index)
+
+                        length = []
+                        for term in A_content:
+                            if docid in A_content[term]:
+                                if term not in tfs:
+                                    tfs[term] = {}
+                                    tfreq = tf(len(A_content[term][docid]['index'])) #log term frequency
+                                    tfs[term][docid] = tfreq
+                                    length.append(tfreq)
+                                else:
+                                    tfreq = tf(len(A_content[term][docid]['index'])) #log term frequency
+                                    tfs[term][docid] = tfreq
+                                    length.append(tfreq)
+
+                        for term in tfs:
+                            if docid in tfs[term]:
+                                tfs[term][docid] = tfs[term][docid]/L2norm(length) #normalisation
+
+
+                        for term in A_content:
+                            if docid in A_content[term]:
+                                A_content[term][docid]['tf'] = tfs[term][docid]
+                                    
+                                
+                    elif elem.attrib['name'] == 'title':
+                        title = clean_content(elem.text)
+                        for index,term in enumerate(title):
+                            if term not in A_title:
+                                A_title[term] = {docid:[index]}
+
+                            else:
+                                if docid not in A_title[term]:
+                                    A_title[term][docid] = [index]
+                                else:
+                                    A_title[term][docid].append(index)
+
+ 
     #idf
     idfs = {}
     
@@ -220,7 +231,7 @@ def make_dictionary(directory,dictionary_file,postings_file,metadata_file):
     #add in meta data
     index = storein_metadata(metadata,A_tags,index,'tags')
     index = storein_metadata(metadata,A_dateposted,index,'date_posted')
-    index = storein_metadata(metadata,A_jurisdiction,index,'jur')
+    index = storein_metadata(metadata,A_jury,index,'jur')
     index = storein_metadata(metadata,A_court,index,'court')
     
     #add in content
@@ -233,9 +244,6 @@ def make_dictionary(directory,dictionary_file,postings_file,metadata_file):
     json.dump(index,dictionary)
     dictionary.close()
     postings.close()
-    metadata.close()
-    
-
 
 def usage():
     print ("usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file -m metadata_file")
@@ -261,8 +269,9 @@ if directory_of_documents == None or dictionary_file == None or postings_file ==
     usage()
     sys.exit(2)
 
+
 start = time.time()
 print("Creating index...")
-make_dictionary(directory_of_documents,dictionary_file,postings_file,metadata_file)
+make_dictionary1(directory_of_documents,dictionary_file,postings_file,metadata_file)
 end = time.time()
 print("Time taken to index: " + str(end-start))
