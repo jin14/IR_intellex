@@ -1,7 +1,7 @@
 import heapq
 from collections import Counter
 from nltk.stem.porter import PorterStemmer
-from util import tf,L2norm,idfs
+from util import tf,L2norm,idf
 import os
 import nltk
 import json
@@ -14,7 +14,7 @@ import string
 stemmer = PorterStemmer()
 
 
-def clean_query_nonphrasal(text):
+def clean_query_nonphrasal(text):   
     output = []
     for query in text.split(' AND '):
         output.extend([stemmer.stem(i.lower()) for i in query.split() if  stemmer.stem(i.lower())])
@@ -22,7 +22,6 @@ def clean_query_nonphrasal(text):
 
 
 def clean_query_phrasal(text):
-    
     output = []
     for query in text.split(' AND '):
         result = [stemmer.stem(i.lower()) for i in query.split() if  stemmer.stem(i.lower())]
@@ -111,6 +110,7 @@ def search(dictionary,postings,metadata,queries,output):
         with open(output,'w') as o:
             print("Querying...")
             for query in q.read().splitlines():
+                query = query.replace('"', ' ') #remove the quotation
                 query = clean_query_nonphrasal(query)
                 query_ltc = queryscore_nonphrasal(query,d)
                 result = {}

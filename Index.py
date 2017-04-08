@@ -1,4 +1,5 @@
 import string
+from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.stem.porter import PorterStemmer
 #import xml.etree.ElementTree as ET 127.96343898773193
 from lxml import etree as ET
@@ -19,16 +20,26 @@ def clean_content(text):
     text = text.replace('\n', ' ') #remove newline characters
     text = text.replace('\t',' ') # trim whitespaces including tabs etc
     text = text.replace('\xa0', ' ') #remove \xa0 (non-breaking space in latin)
-    text = text.replace('\u20', ' ')
+    text = text.replace(r'\u20', ' ')
     
     result = []
+    """
+    for sentence in sent_tokenize(text):
+    	for word in word_tokenize(sentence):
+    		try:
+    			if stemmer.stem(word).strip(chars):
+    				result.append(stemmer.stem(word).strip(chars))
+    		except:
+    			result.append(i)		
+    """			
     for i in text.split():
         try:
             if stemmer.stem(i).strip(chars):
                 result.append(stemmer.stem(i).strip(chars))
         except:
             result.append(i)
-    
+           
+	
     return result
 
 
@@ -67,7 +78,6 @@ def store_content(posting_file,content,index,key,idfs):
             index[key][term][docid] = {'start':start, 'len':len(postings), 'tf': content[term][docid]['tf']}
     
     return index
-
 
 def store_title(posting_file,title,index,key):
     
@@ -276,3 +286,5 @@ print("Creating index...")
 make_dictionary1(directory_of_documents,dictionary_file,postings_file,metadata_file)
 end = time.time()
 print("Time taken to index: " + str(end-start))
+
+
