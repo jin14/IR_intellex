@@ -125,13 +125,15 @@ def search(dictionary,postings,metadata,queries,output):
                 docids = map(str,docids)
                 for term in query:
                     for docid in docids:
-                        if docid in d['content'][term].keys():
-                            if docid not in result:
-                                result[docid] = d['content'][term][docid]['tf'] * query_ltc[term]
+                        try:
+                            if docid in d['content'][term].keys():
+                                if docid not in result:
+                                    result[docid] = d['content'][term][docid]['tf'] * query_ltc[term]
 
-                            else:
-                                result[docid] += d['content'][term][docid]['tf'] * query_ltc[term]
-                                    
+                                else:
+                                    result[docid] += d['content'][term][docid]['tf'] * query_ltc[term]
+                        except:
+                            continue            
                 
                 heap = [(value, key) for key,value in result.items()]
                 # get the top 10 document id based on the lnc.ltc score # need to use another method to determine output
