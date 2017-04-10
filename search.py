@@ -113,6 +113,7 @@ def search(dictionary,postings,metadata,queries,output):
                 query = query.replace('"', ' ') #remove the quotation
                 query = clean_query_nonphrasal(query)
                 query_ltc = queryscore_nonphrasal(query,d)
+                
                 result = {}
                 docids = sorted(d['docids'])
                 for term in query:
@@ -143,6 +144,65 @@ def search(dictionary,postings,metadata,queries,output):
                 o.write(result + '\n')
                                            
     p.close()
+
+# method to check if the 2 words are next to each other in the same document
+# parses in the 2 postings of the 2 queried words. 
+# (have to seek using the 'start' and 'len' in d[content][term][docID])
+# where to call this? and must retrieve query terms pair by pair ah?
+def phrasalQuery(term1, term2, dictionary_file, postings_file):
+    dic = json.load(open(dictionary,'r'))
+    pFile = open(posting_file, "r+")
+    #remove the prev 2 lines if we were to call this method in search()
+
+    ans = []
+    i = 0
+    j = 0
+    while (i < len(dic['content']['term1']) and j < len(dic['content']['term2'])):
+        docid1 = dic['content']['term1']
+        docid2 = dic['content']['term2']
+        if (docid1 == docid2):
+            postingsResultsList = []
+
+            start = dic['content']['term1']['docid1']['start']
+            length = dic['content']['term1']['docid1']['len']
+            pFile.seek(start, 0)
+            postings1 = pFile.read(length)
+
+            start = dic['content']['term2']['docid2']['start']
+            length = dic['content']['term2']['docid2']['len']
+            pFile.seek(start, 0)
+            postings2 = pFile.read(length)
+
+            k = 0
+            while(k < len(postings1)):
+                l = 0
+                while(l < len(postings2)):
+                    dist = abs(postings1[k] - postings2[l])
+                    if (dist == 1):
+                        postingsResultsList.append(l)
+                    elif (postings2[l] > postings1[k]):
+                        break
+                    l += 1        
+                for item in postingsResultsList:
+                    dist = abs(postings2[item] - postings1[k])
+                    if (dist > 1):
+                        postingsResultsList.remove(item)
+                for item in postingsResultsList:
+                    ans.append({"doc_id:" : docid1, "positionalData1:" : postings1[k], "positionalData2:" : postings2[item]})
+
+                k += 1
+            i += 1
+            j += 1
+        else: #document id not equal              
+            if (docid1 < docid2):
+                i += 1
+            else:
+                j += 1
+
+    return ans            
+
+
+
 
 
 def usage():
