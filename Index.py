@@ -10,6 +10,7 @@ import getopt
 import sys
 from util import tf,L2norm,idf
 import time
+import re
 
 stemmer = PorterStemmer()
 def clean_content(text):
@@ -17,13 +18,14 @@ def clean_content(text):
     chars = string.punctuation + '”' + '’' + '“' + '…'
     
     text = text.lower() #lowercase
-    text = text.replace('\n', ' ') #remove newline characters
-    text = text.replace('\t',' ') # trim whitespaces including tabs etc
-    text = text.replace('\xa0', ' ') #remove \xa0 (non-breaking space in latin)
-    text = text.replace(r'\u20', ' ')
-    
+    # text = text.replace('\n', ' ') #remove newline characters
+    # text = text.replace('\t',' ') # trim whitespaces including tabs etc
+    # text = text.replace('\xa0', ' ') #remove \xa0 (non-breaking space in latin)
+    # text = text.replace(r'\u20', ' ')
+    text = re.sub('[^A-Za-z0-9]+', ' ', text) # only keep alphabets and numbers, removes the rest
+
     result = []
-    """
+
     for sentence in sent_tokenize(text):
     	for word in word_tokenize(sentence):
     		try:
@@ -31,13 +33,13 @@ def clean_content(text):
     				result.append(stemmer.stem(word).strip(chars))
     		except:
     			result.append(i)		
-    """			
-    for i in text.split():
-        try:
-            if stemmer.stem(i).strip(chars):
-                result.append(stemmer.stem(i).strip(chars))
-        except:
-            result.append(i)
+		
+    # for i in text.split():
+    #     try:
+    #         if stemmer.stem(i).strip(chars):
+    #             result.append(stemmer.stem(i).strip(chars))
+    #     except:
+    #         result.append(i)
            
 	
     return result
