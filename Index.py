@@ -88,11 +88,14 @@ def extract_info1(path):
 
     
     #court
-    subpool = MyPool()
-    result = subpool.starmap(addtodict,[(areaoflaw,docid),(tag,docid)])
-    subpool.close()
-    A_areaoflaw = result[0]
-    A_tags = result[1]
+    # subpool = MyPool()
+    # result = subpool.starmap(addtodict,[(areaoflaw,docid),(tag,docid)])
+    # subpool.close()
+    # A_areaoflaw = result[0]
+    # A_tags = result[1]
+
+    A_areaoflaw = addtodict(areaoflaw,docid)
+    A_tags = addtodict(tag,docid)
     
     #metadata
     A_metadata = {'jury':jury, 'court': court, 'date_posted': date_posted }
@@ -167,16 +170,16 @@ def clean_content(text):
 
     text = re.sub('[^A-Za-z0-9]+', ' ', text)
     
-    sub1 = MyPool()
+    # sub1 = MyPool()
 
     result = [sent for sent in sent_tokenize(text)]
     result = [word for sublist in result for word in word_tokenize(sublist)]
 
 
-    result = sub1.map(wordify,result)
-
+    # result = sub1.map(wordify,result)
+    result = list(map(wordify,result))
     
-    sub1.close()
+    #sub1.close()
     
 
     return result
@@ -278,7 +281,8 @@ def make_dictionary1(directory,dictionary_file,postings_file):
             docids.append(filename.name[:-4])
             
     print("Extracting...")
-    pool = MyPool()
+    pool = Pool()
+    #pool = MyPool()
     result = pool.map(extract_info1,new)
     
     pool.close()
