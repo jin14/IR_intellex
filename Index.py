@@ -16,18 +16,18 @@ from multiprocessing import Pool
 
 stemmer = PorterStemmer()
 
-class NoDaemonProcess(multiprocessing.Process):
-    # make 'daemon' attribute always return False
-    def _get_daemon(self):
-        return False
-    def _set_daemon(self, value):
-        pass
-    daemon = property(_get_daemon, _set_daemon)
+# class NoDaemonProcess(multiprocessing.Process):
+#     # make 'daemon' attribute always return False
+#     def _get_daemon(self):
+#         return False
+#     def _set_daemon(self, value):
+#         pass
+#     daemon = property(_get_daemon, _set_daemon)
 
-# We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
-# because the latter is only a wrapper function, not a proper class.
-class MyPool(multiprocessing.pool.Pool):
-    Process = NoDaemonProcess
+# # We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
+# # because the latter is only a wrapper function, not a proper class.
+# class MyPool(multiprocessing.pool.Pool):
+#     Process = NoDaemonProcess
 
 def storein_metadata(postings_file,metadata,index,key):
     
@@ -343,9 +343,10 @@ if directory_of_documents == None or dictionary_file == None or postings_file ==
     usage()
     sys.exit(2)
 
-start = time.time()
-b = make_dictionary1(directory_of_documents, dictionary_file, postings_file)
-end = time.time()
-print("Time taken: " + str(end-start))
+if __name__ == '__main__':
+    start = time.time()
+    b = make_dictionary1(directory_of_documents, dictionary_file, postings_file)
+    end = time.time()
+    print("Time taken: " + str(end-start))
 
 
