@@ -9,12 +9,29 @@ import json
 import getopt
 import sys
 import time
-from util import tf,L2norm,idf
+import math
 import re
 import multiprocessing
 from multiprocessing import Pool
 
 stemmer = PorterStemmer()
+
+def tf(count):
+	# calculate the logarithmic term frequency
+    if count > 0:
+        return 1 + math.log10(count)
+    else:
+        return 0
+
+
+def idf(docfreq,totaldocs):
+    # compute the inverse document frequency score
+    return math.log10(totaldocs/docfreq)
+
+
+def L2norm(k):
+	# compute the L2 norm of the term
+    return math.sqrt(sum(map(lambda x:x**2 if x>0 else 0,k)))
 
 # class NoDaemonProcess(multiprocessing.Process):
 #     # make 'daemon' attribute always return False
@@ -330,7 +347,7 @@ def usage():
 directory_of_documents = dictionary_file = postings_file = None
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'i:d:p:')
-except (getopt.GetoptError, err):
+except getopt.GetoptError as err:
     usage()
     sys.exit(2)
 for o, a in opts:
