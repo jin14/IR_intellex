@@ -1,7 +1,6 @@
 import heapq
 from collections import Counter
 from nltk.stem.porter import PorterStemmer
-from util import tf,L2norm,idf
 import os
 import nltk
 import json
@@ -28,6 +27,17 @@ def clean_query_phrasal(text):
         output.append(result)
         
     return output
+
+def tf(count):
+	# calculate the logarithmic term frequency
+    if count > 0:
+        return 1 + math.log10(count)
+    else:
+        return 0
+
+def L2norm(k):
+	# compute the L2 norm of the term
+    return math.sqrt(sum(map(lambda x:x**2 if x>0 else 0,k)))
 
 def queryscore_nonphrasal(query,d):
     queryD = Counter(query)
@@ -198,7 +208,7 @@ def usage():
 dictionary_file = postings_file = file_of_queries = output_results = metadata_file = None
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'd:p:m:q:o:')
-except (getopt.GetoptError, err):
+except getopt.GetoptError as err:
     usage()
     sys.exit(2)
 for o, a in opts:
@@ -222,3 +232,5 @@ start = time.time()
 search(dictionary_file,postings_file,metadata_file,file_of_queries,output_results)
 end = time.time()
 print("Time taken: " + str(end-start))
+
+#
