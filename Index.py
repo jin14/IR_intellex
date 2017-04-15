@@ -1,8 +1,8 @@
 import string
 from nltk.stem.porter import PorterStemmer
 from nltk.tokenize import word_tokenize, sent_tokenize
-#import xml.etree.ElementTree as ET 127.96343898773193
-from lxml import etree as ET
+import xml.etree.ElementTree as ET 
+# from lxml import etree as ET
 #import xml.etree.cElementTree as ET
 import os
 import json
@@ -76,15 +76,15 @@ def extract_info1(path):
     
     tree = ET.parse(path)
     
-    docid = int(tree.find("//str[@name='document_id']").text)
-    date_posted = tree.find("//date[@name='date_posted']").text[:10]
-    title = tree.find("//str[@name='title']").text
-    content = tree.find("//str[@name='content']").text
+    docid = int(tree.find(".//str[@name='document_id']").text)
+    date_posted = tree.find(".//date[@name='date_posted']").text[:10]
+    title = tree.find(".//str[@name='title']").text
+    content = tree.find(".//str[@name='content']").text
     
-    court = [i.text for i in tree.findall("//str[@name='court']")]
-    jury = [i.text for i in tree.findall("//arr[@name='jurisdiction']/str")]
-    tag = [i.text for i in tree.findall("//arr[@name='tag']/str")]
-    areaoflaw = [i.text for i in tree.findall("//arr[@name='areaoflaw']/str")]
+    court = [i.text for i in tree.findall(".//str[@name='court']")]
+    jury = [i.text for i in tree.findall(".//arr[@name='jurisdiction']/str")]
+    tag = [i.text for i in tree.findall(".//arr[@name='tag']/str")]
+    areaoflaw = [i.text for i in tree.findall(".//arr[@name='areaoflaw']/str")]
 
     
     #court
