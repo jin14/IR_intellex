@@ -122,6 +122,7 @@ def search(dictionary,postings,metadata,queries,output):
                         new.remove('idf')
                         new = sorted(map(int,new))
                         docids = mergeAND(docids,new) # the key idf will be present
+
                 
                 docids = map(str,docids)
                 for term in query:
@@ -147,59 +148,45 @@ def search(dictionary,postings,metadata,queries,output):
 
 # method to check if the 2 words are next to each other in the same document
 # parses in the 2 postings of the 2 queried words. 
-# (have to seek using the 'start' and 'len' in d[content][term][docID])
-# where to call this? and must retrieve query terms pair by pair ah?
-def phrasalQuery(term1, term2, dictionary_file, postings_file):
-    dic = json.load(open(dictionary,'r'))
-    pFile = open(posting_file, "r+")
-    #remove the prev 2 lines if we were to call this method in search()
+# pass in the  list of docID that contains term A and B (found using MergeAnd method)
+# then within each doc, check if A and B are next to each other
+def phrasalQuery(term1, term2, docIDs, pFile):
+    postingsResultsList = []
 
-    ans = []
-    i = 0
-    j = 0
-    while (i < len(dic['content']['term1']) and j < len(dic['content']['term2'])):
-        docid1 = dic['content']['term1']
-        docid2 = dic['content']['term2']
-        if (docid1 == docid2):
-            postingsResultsList = []
+    for id in docIDs:
+        #fetch the positional indices from posting file
+        start = dic['content'][term1]['s']
+        pFile.seek(start, 0)
+        #list of pos of term1 in docID id.
+        r1 = pFile.readLine()
+        
+        #is this the correct way to fetch the positional index?
+        positions1 = r1['index']
 
-            start = dic['content']['term1']['docid1']['start']
-            length = dic['content']['term1']['docid1']['len']
-            pFile.seek(start, 0)
-            postings1 = pFile.read(length)
+        start = dic['content'][term2]['s']
+        pFile.seek(start, 0)
+        #list of pos of term2 in docID id.
+        r2 = pFile.readLine()
+        positions2 = r2['index']
 
-            start = dic['content']['term2']['docid2']['start']
-            length = dic['content']['term2']['docid2']['len']
-            pFile.seek(start, 0)
-            postings2 = pFile.read(length)
+        k = 0
+        while(k < len(positions1)):
+            l = 0
+            while(l < len(positions2)):
+                #abs or strictly 1? can't even test when my indexing has issue =.=
+                dist = abs(positions1[k] - positions2[l])
+                if (dist == 1):
+                    postingsResultsList.append(l)
+                elif (positions2[l] > positions1[k]):
+                    break
+                l += 1        
+            for item in postingsResultsList:
+                dist = abs(positions2[item] - positions1[k])
+                if (dist > 1):
+                    postingsResultsList.remove(item)
+                k += 1         
 
-            k = 0
-            while(k < len(postings1)):
-                l = 0
-                while(l < len(postings2)):
-                    dist = abs(postings1[k] - postings2[l])
-                    if (dist == 1):
-                        postingsResultsList.append(l)
-                    elif (postings2[l] > postings1[k]):
-                        break
-                    l += 1        
-                for item in postingsResultsList:
-                    dist = abs(postings2[item] - postings1[k])
-                    if (dist > 1):
-                        postingsResultsList.remove(item)
-                for item in postingsResultsList:
-                    ans.append({"doc_id:" : docid1, "positionalData1:" : postings1[k], "positionalData2:" : postings2[item]})
-
-                k += 1
-            i += 1
-            j += 1
-        else: #document id not equal              
-            if (docid1 < docid2):
-                i += 1
-            else:
-                j += 1
-
-    return ans            
+    return postingsResultsList           
 
 
 
