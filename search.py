@@ -114,7 +114,7 @@ def search(dictionary,postings,queries,output):
 #   It also has cachers instantiated to cache both the query results.
     global p
     d = json.load(open(dictionary,'r'))
-    p = open(postings)
+    p = open(postings,'r')
 
     with open(queries) as q:
         with open(output,'w') as o:
@@ -133,7 +133,8 @@ def search(dictionary,postings,queries,output):
                         print(offset)
                         p.seek(offset, 0)
                         termFound = p.readline() #this returns a string, not a dict
-                        idsForTerm = json.loads(termFound.replace("'", '"')).keys()
+                        termFound = eval(termFound) # in dictionary form
+                        idsForTerm = termFound.keys()
                         
                     #    termFound = termFound.replace("'", '"')
                         print(termFound)

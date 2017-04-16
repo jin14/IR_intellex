@@ -304,15 +304,15 @@ def make_dictionary1(directory,dictionary_file,postings_file):
     #pool = MyPool()
 
     # with cpu counts
-    # num_workers = multiprocessing.cpu_count()
-    # pool = multiprocessing.Pool(num_workers)
-    # chunksize = len(new)//(4*num_workers) + 1
-    # result = pool.map(extract_info1,new,chunksize)
+    num_workers = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(num_workers)
+    chunksize = len(new)//(4*num_workers) + 1
+    result = pool.imap(extract_info1,new,chunksize)
     
-    # pool.close()
+    pool.close()
 
     #no pooling
-    result = map(extract_info1,new)
+    # result = map(extract_info1,new)
     
     print("Merging...")
     A_metadata = {}
