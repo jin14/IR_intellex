@@ -50,7 +50,43 @@ def queryscore_nonphrasal(query,d):
             queryD[term] = 0
             
     return queryD
+#From our homework 2 code    
+def processAnd(posting1, posting2):
+    results = []
+    i = 0
+    j = 0
+    while i < len(posting1) and j < len(posting2):
+            if posting1[i] == posting2[j]:
+                
+                results.append(posting1[i])
+                i += 1
+                j += 1
+            elif posting1[i] > posting2[j]:
+                skip = int(math.sqrt(len(posting2)))
+                
+                if j % skip == 0 and (j+skip) < len(posting2):
+                    if posting1[i]> posting2[j+skip]:
+                        #print "skip"
+                        j+= skip
+                    else:    
+                        j += 1
+                else:
+                    j += 1            
+            else:
+                skip = int(math.sqrt(len(posting1)))
+                
+                if i % skip == 0 and (i+skip) < len(posting1):
+                    if posting2[j]> posting1[i+skip]:
+                        #print "skip"
+                        i+= skip
+                    else:        
+                        i += 1 
+                else:
+                    i += 1  
+    print( "merge? " + str(results))               
+    return results
 
+#JW's code 
 def mergeAND(left,right):
     bound = 4
     
@@ -74,7 +110,7 @@ def mergeAND(left,right):
     
     return result
 
-
+#JW's code 
 def skipintersectionAND(left,right):
 
 # This method imitates the nature of a skiplist. The index will skip if it is a modulo of the (len(list))**0.5
@@ -107,6 +143,7 @@ def skipintersectionAND(left,right):
         
     return result
 
+
 def search(dictionary,postings,queries,output):
 
 
@@ -125,7 +162,8 @@ def search(dictionary,postings,queries,output):
                 query_ltc = queryscore_nonphrasal(query,d)
                 
                 result = {}
-                docids = sorted(d['docids'])
+                phrasalList = []
+                docids = sorted(map(int,d['docids']))
                 for term in query:
                     if term in d['content']:
                         #new = list(d['content'][term].keys())\
@@ -135,23 +173,18 @@ def search(dictionary,postings,queries,output):
                         termFound = p.readline() #this returns a string, not a dict
                         termFound = eval(termFound) # in dictionary form
                         idsForTerm = termFound.keys()
+                        new = sorted(map(int,idsForTerm)) 
                         
-                    #    termFound = termFound.replace("'", '"')
-                        print(termFound)
-                      #  s = json.dumps(termFound)
-                       # obj = json.loads(s)
-                        #if isinstance(idsForTerm, str):
-                        #    print("dict!!!!")
-                       # idsForTerm = list(obj.keys()) #list of docIDs containing that term
-                        
-                        new = sorted(map(int,idsForTerm))
-                        docids = mergeAND(docids,new) # the key idf will be present
+                        docids = processAnd(docids,new) # the key idf will be present
+                        #docids = mergeAND(docids,new)
 
                 
                 docids = map(str,docids)
-                print(docids)
+
+                
                 for term in query:
                     for docid in docids:
+                        print("current docid: " + docid)
                         try:
                             if docid in d['content'][term].keys():
                                 if docid not in result:
@@ -167,6 +200,7 @@ def search(dictionary,postings,queries,output):
                 result = heapq.nlargest(10, heap)
                 result = [(key,value) for value, key in result]
                 result = ' '.join(map(str,[i[0] for i in result]))
+                print("results: " + result)
                 o.write(result + '\n')
                                            
     p.close()
