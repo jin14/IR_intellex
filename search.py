@@ -39,6 +39,10 @@ def L2norm(k):
 	# compute the L2 norm of the term
     return math.sqrt(sum(map(lambda x:x**2 if x>0 else 0,k)))
 
+def idf(docfreq,totaldocs):
+    # compute the inverse document frequency score
+    return math.log10(totaldocs/docfreq)
+
 def queryscore_nonphrasal(query,d):
     queryD = Counter(query)
     L2 = L2norm(map(tf,queryD.values()))
@@ -179,21 +183,21 @@ def search(dictionary,postings,queries,output):
                         #docids = mergeAND(docids,new)
                         termtfs[term] = {}
                         for ids in idsForTerm:
-                            print(ids)
                             termtfs[term][ids] = termFound[ids]['tf']
 
 
                 # docids = map(str,docids)
+                N = len(d['docids'])
                 for term in query:
                     for docid in list(docids):
                         # print("current docid: " + docid)
                         try:
                             if docid in termtfs[term].keys():
                                 if docid not in result:
-                                    result[docid] = termtfs[term][docid] #* query_ltc[term]
+                                    result[docid] = termtfs[term][docid] * idf(len(termtfs[term].keys()),N) * query_ltc[term] #tfidf of term * tf of query
 
                                 else:
-                                    result[docid] += termtfs[term][docid] #* query_ltc[term]
+                                    result[docid] += termtfs[term][docid] * idf(len(termtfs[term].keys()),N) * query_ltc[term] #tfidf of term * tf of query
                         except:
                             continue            
 
