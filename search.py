@@ -83,7 +83,7 @@ def processAnd(posting1, posting2):
                         i += 1 
                 else:
                     i += 1  
-    print( "merge? " + str(results))               
+    #print( "merge? " + str(results))               
     return results
 
 #JW's code 
@@ -163,38 +163,40 @@ def search(dictionary,postings,queries,output):
                 
                 result = {}
                 phrasalList = []
+                termtfs = {}
                 docids = sorted(map(int,d['docids']))
                 for term in query:
                     if term in d['content']:
+                        print(term)
                         #new = list(d['content'][term].keys())\
                         offset = d['content'][term]['s']
-                        print(offset)
                         p.seek(offset, 0)
                         termFound = p.readline() #this returns a string, not a dict
                         termFound = eval(termFound) # in dictionary form
                         idsForTerm = termFound.keys()
                         new = sorted(map(int,idsForTerm)) 
-                        
                         docids = processAnd(docids,new) # the key idf will be present
                         #docids = mergeAND(docids,new)
+                        termtfs[term] = {}
+                        for ids in idsForTerm:
+                            termtfs[term][ids] = termFound[ids]['tf']
 
-                
-                docids = map(str,docids)
 
-                
+                # docids = map(str,docids)
+
                 for term in query:
-                    for docid in docids:
-                        print("current docid: " + docid)
+                    for docid in list(docids):
+                        # print("current docid: " + docid)
                         try:
-                            if docid in d['content'][term].keys():
+                            if docid in termtfs[term].keys():
                                 if docid not in result:
-                                    result[docid] = d['content'][term][docid]['tf'] * query_ltc[term]
+                                    result[docid] = termtfs[term][docid] #* query_ltc[term]
 
                                 else:
-                                    result[docid] += d['content'][term][docid]['tf'] * query_ltc[term]
+                                    result[docid] += termtfs[term][docid] #* query_ltc[term]
                         except:
                             continue            
-                
+
                 heap = [(value, key) for key,value in result.items()]
                 # get the top 10 document id based on the lnc.ltc score # need to use another method to determine output
                 result = heapq.nlargest(10, heap)
