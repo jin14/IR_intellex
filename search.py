@@ -11,7 +11,7 @@ import time
 import string
 
 stemmer = PorterStemmer()
-
+p = None
 
 def clean_query_nonphrasal(text):   
     output = []
@@ -44,7 +44,8 @@ def queryscore_nonphrasal(query,d):
     L2 = L2norm(map(tf,queryD.values()))
     for term in queryD:
         if term in d['content']:
-            queryD[term] = (tf(queryD[term])/L2)* d['content'][term]['idf']
+            #queryD[term] = (tf(queryD[term])/L2)* d['content'][term]['idf']
+            queryD[term] = (tf(queryD[term])/L2)
         else:
             queryD[term] = 0
             
@@ -106,15 +107,14 @@ def skipintersectionAND(left,right):
         
     return result
 
-def search(dictionary,postings,metadata,queries,output):
+def search(dictionary,postings,queries,output):
 
 
 #   This is the main function that returns the query results and write it to the output file. 
 #   It also has cachers instantiated to cache both the query results.
-
+    global p
     d = json.load(open(dictionary,'r'))
     p = open(postings)
-    m = open(metadata)
 
     with open(queries) as q:
         with open(output,'w') as o:
@@ -128,13 +128,27 @@ def search(dictionary,postings,metadata,queries,output):
                 docids = sorted(d['docids'])
                 for term in query:
                     if term in d['content']:
-                        new = list(d['content'][term].keys())
-                        new.remove('idf')
-                        new = sorted(map(int,new))
+                        #new = list(d['content'][term].keys())\
+                        offset = d['content'][term]['s']
+                        print(offset)
+                        p.seek(offset, 0)
+                        termFound = p.readline() #this returns a string, not a dict
+                        idsForTerm = json.loads(termFound.replace("'", '"')).keys()
+                        
+                    #    termFound = termFound.replace("'", '"')
+                        print(termFound)
+                      #  s = json.dumps(termFound)
+                       # obj = json.loads(s)
+                        #if isinstance(idsForTerm, str):
+                        #    print("dict!!!!")
+                       # idsForTerm = list(obj.keys()) #list of docIDs containing that term
+                        
+                        new = sorted(map(int,idsForTerm))
                         docids = mergeAND(docids,new) # the key idf will be present
 
                 
                 docids = map(str,docids)
+                print(docids)
                 for term in query:
                     for docid in docids:
                         try:
@@ -203,11 +217,11 @@ def phrasalQuery(term1, term2, docIDs, pFile):
 
 
 def usage():
-    print ("usage: " + sys.argv[0] + " -d dictionary-file -p postings-file -m metadata-file -q file-of-queries -o output-file-of-results")
+    print ("usage: " + sys.argv[0] + " -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results")
 
-dictionary_file = postings_file = file_of_queries = output_results = metadata_file = None
+dictionary_file = postings_file = file_of_queries = output_results = None
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'd:p:m:q:o:')
+    opts, args = getopt.getopt(sys.argv[1:], 'd:p:q:o:')
 except getopt.GetoptError as err:
     usage()
     sys.exit(2)
@@ -216,20 +230,18 @@ for o, a in opts:
         dictionary_file = a
     elif o == '-p':
         postings_file = a
-    elif o == '-m':
-    	metadata_file = a
     elif o == '-q':
         file_of_queries = a
     elif o == '-o':
         output_results = a
     else:
         assert False, "unhandled option"
-if dictionary_file == None or postings_file == None or file_of_queries == None or output_results == None or metadata_file == None:  
+if dictionary_file == None or postings_file == None or file_of_queries == None or output_results == None:  
     usage()
     sys.exit(2)
 
 start = time.time()
-search(dictionary_file,postings_file,metadata_file,file_of_queries,output_results)
+search(dictionary_file,postings_file,file_of_queries,output_results)
 end = time.time()
 print("Time taken: " + str(end-start))
 
