@@ -179,11 +179,11 @@ def search(dictionary,postings,queries,output):
                         #docids = mergeAND(docids,new)
                         termtfs[term] = {}
                         for ids in idsForTerm:
+                            print(ids)
                             termtfs[term][ids] = termFound[ids]['tf']
 
 
                 # docids = map(str,docids)
-
                 for term in query:
                     for docid in list(docids):
                         # print("current docid: " + docid)
@@ -199,7 +199,7 @@ def search(dictionary,postings,queries,output):
 
                 heap = [(value, key) for key,value in result.items()]
                 # get the top 10 document id based on the lnc.ltc score # need to use another method to determine output
-                result = heapq.nlargest(10, heap)
+                result = heapq.nlargest(40, heap)
                 result = [(key,value) for value, key in result]
                 result = ' '.join(map(str,[i[0] for i in result]))
                 print("results: " + result)
