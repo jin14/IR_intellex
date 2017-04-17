@@ -12,6 +12,73 @@ import string
 
 stemmer = PorterStemmer()
 termtfs = {}
+
+def processPhrasal(positions1, positions2):
+    result = []
+    i = 0
+    while(i < len(positions1)):
+        j = 0
+        while(j < len(positions2)):
+                
+            #dist = abs(positions1[i] - positions2[j])
+            dist = positions2[j] - positions1[i]               
+            if (dist == 1):
+                result.append(positions2[j])
+                #print(result)
+            
+            j += 1
+                      
+        i += 1         
+    return result
+
+def phrasalQuery(list, dic, pFile, id):
+    print("################# commencing phrasal query now ################")
+    resultsList = []
+    length = len(list)
+    if(length == 2):
+        r1 = getdocdict(list[0], dic, pFile)
+        
+        r2 = getdocdict(list[1], dic, pFile)
+        
+        try:
+            #list of pos of term1 in docID id.
+            positions1 = r1[id]['index']
+        except KeyError:
+            positions1 = []    
+            #list of pos of term2 in docID id.
+        try:    
+            positions2 = r2[id]['index']
+        except KeyError:
+            positions2 = []    
+        postingsResultsList = processPhrasal(positions1, positions2)
+    
+    if(length == 3):
+        r1 = getdocdict(list[0], dic, pFile)
+        try:
+            #list of pos of term1 in docID id.
+            positions1 = r1[id]['index']
+        except KeyError:
+            positions1 = []
+        r2 = getdocdict(list[1], dic, pFile)
+        try:    
+            positions2 = r2[id]['index']
+        except KeyError:
+            positions2 = []
+        r3 = getdocdict(list[2], dic, pFile)
+        try:
+            #list of pos of term1 in docID id.
+            positions3 = r3[id]['index']
+        except KeyError:
+            positions3 = []
+        resultsList = processPhrasal(positions1, positions2)
+        resultsList = processPhrasal(resultsList, positions3)
+    #compute tf now
+    freq = len(resultsList)
+
+    phrasalQueryTF = tf(freq)  
+           
+    return phrasalQueryTF  
+
 def clean_query_nonphrasal(text):   
     output = []
     for query in text.split(' AND '):
@@ -43,15 +110,20 @@ def idf(docfreq,totaldocs):
     return math.log10(totaldocs/docfreq)
 
 def queryscore_nonphrasal(query, d, total):
+
     queryD = Counter(query)
+    print(queryD)
     L2 = L2norm(map(tf, queryD.values()))
     for term in queryD:
         if term in d['content']:
             #queryD[term] = (tf(queryD[term])/L2)* d['content'][term]['idf']
-            queryD[term] = (tf(queryD[term]) * idf(len(d['content'][term], total))/L2)
+            queryD[term] = (tf(queryD[term]) * idf(len(d['content'][term]), total)/L2)
+            print(total)
         else:
             queryD[term] = 0
-            
+            print(2)
+     
+
     return queryD
 #From our homework 2 code    
 def processAnd(posting1, posting2):
@@ -151,12 +223,12 @@ def processQuery(query, dic, posting):
     listofphrase = clean_query_phrasal(query)
     for phrase in listofphrase:
         if len(phrase) > 1:
-            temp = getdocdict(phrase[0].keys())
+            temp = list(getdocdict(phrase[0], dic, posting).keys())
             for term in phrase[1:]:
-                temp = processOr(temp, getdocdict(term).keys())
+                temp = processOr(temp, list(getdocdict(term, dic, posting).keys()))
             listofdocs.append(temp)
         else:
-            listofdocs.append(getdocdict(phrase[0], dic, posting).keys())
+            listofdocs.append(list(getdocdict(phrase[0], dic, posting).keys()))
     results = listofdocs[0]
     for docs in listofdocs[1:]:
         results = processAnd(results, docs)
@@ -196,12 +268,17 @@ def getdocdict(term, dic, posting):
 
 def findLtcLnc(docId, listofterms, query_ltc):
     score = 0
-    L2 = L2norm()
+    print(listofterms)
     for term in listofterms:
-        ltc = query_ltc[term]
-        lnc = termtfs[term][docId]
+        try:
+            ltc = query_ltc[term]
+            lnc = termtfs[term][docId]
+        except KeyError:
+            lnc = 0    
         score += (ltc * lnc)
 
+
+    return score
 
 def search(dictionary,postings,queries,output):
 #   This is the main function that returns the query results and write it to the output file. 
@@ -213,17 +290,19 @@ def search(dictionary,postings,queries,output):
         with open(output,'w') as o:
             print("Querying...")
             for query in q.read().splitlines():
+                query = query.replace('"', "")
                 docid = processQuery(query, d, p)
                 #print ("non: " + str(query_n))
-                query = query.replace('""', "")
+                
                 listofterms = clean_query_nonphrasal(query)
                 listofphrase = [i for i in clean_query_phrasal(query) if len(i) > 1]
-                query_ltc = queryscore_nonphrasal(query, d, len(d['docids']))
+                query_ltc = queryscore_nonphrasal(listofterms, d, len(d['docids']))
                 result = {}
                 docids = processQuery(query, d, p)
                 heap = []
                 for doc in docids:
                     score = findLtcLnc(doc, listofterms, query_ltc)
+                    print("score:" + str(score))
                     for phrase in listofphrase:
                         score *= phrasalQuery(phrase, d, p, doc)
                     heapq.heappush(heap, [score, doc])
@@ -235,58 +314,6 @@ def search(dictionary,postings,queries,output):
                 o.write(result + '\n')
                                            
     p.close()
-
-# method to check if the 2 words are next to each other in the same document
-# parses in the 2 postings of the 2 queried words. 
-# pass in the list of docID that contains term A and B (found using MergeAnd method)
-# then within each doc, check if A and B are next to each other
-def phrasalQuery(term1, term2, docIDs, dic, pFile):
-    print("################# commencing phrasal query now ################")
-    postingsResultsList = []
-
-    for id in docIDs:
-        #fetch the positional indices from posting file
-        start = dic['content'][term1]['s']
-        pFile.seek(start, 0)
-        #list of pos of term1 in docID id.
-        r1 = pFile.readline()
-        r1 = eval(r1) #convert to python dictionary form
-
-        #is this the correct way to fetch the positional index?
-        positions1 = r1[id]['index']
-
-        start = dic['content'][term2]['s']
-        pFile.seek(start, 0)
-        #list of pos of term2 in docID id.
-        r2 = pFile.readline()
-        r2 = eval(r2)
-        positions2 = r2[id]['index']
-
-        print(positions1)
-        print(type(positions1))
-        print(positions2)
-        print(type(positions2))
-
-        k = 0
-        while(k < len(positions1)):
-            l = 0
-            while(l < len(positions2)):
-                #abs or strictly 1? can't even test when my indexing has issue =.=
-                dist = abs(positions1[k] - positions2[l])
-                print("dist:" +str(dist))
-                if (dist == 1):
-                    postingsResultsList.append(l)
-                    print(postingsResultsList)
-                elif (positions2[l] > positions1[k]):
-                    break
-                l += 1        
-            for item in postingsResultsList:
-                dist = abs(positions2[item] - positions1[k])
-                if (dist > 1):
-                    postingsResultsList.remove(item)
-                k += 1         
-    print ("############### lalala: " + str(postingsResultsList) + "##############")
-    return postingsResultsList           
 
 
 
