@@ -11,8 +11,7 @@ import time
 import string
 
 stemmer = PorterStemmer()
-p = None
-
+termtfs = {}
 def clean_query_nonphrasal(text):   
     output = []
     for query in text.split(' AND '):
@@ -43,13 +42,13 @@ def idf(docfreq,totaldocs):
     # compute the inverse document frequency score
     return math.log10(totaldocs/docfreq)
 
-def queryscore_nonphrasal(query,d):
+def queryscore_nonphrasal(query, d, total):
     queryD = Counter(query)
-    L2 = L2norm(map(tf,queryD.values()))
+    L2 = L2norm(map(tf, queryD.values()))
     for term in queryD:
         if term in d['content']:
             #queryD[term] = (tf(queryD[term])/L2)* d['content'][term]['idf']
-            queryD[term] = (tf(queryD[term])/L2)
+            queryD[term] = (tf(queryD[term]) * idf(len(d['content'][term], total))/L2)
         else:
             queryD[term] = 0
             
@@ -147,13 +146,66 @@ def skipintersectionAND(left,right):
         
     return result
 
+def processQuery(query, dic, posting):
+    listofdocs = []
+    listofphrase = clean_query_phrasal(query)
+    for phrase in listofphrase:
+        if len(phrase) > 1:
+            temp = getdocdict(phrase[0].keys())
+            for term in phrase[1:]:
+                temp = processOr(temp, getdocdict(term).keys())
+            listofdocs.append(temp)
+        else:
+            listofdocs.append(getdocdict(phrase[0], dic, posting).keys())
+    results = listofdocs[0]
+    for docs in listofdocs[1:]:
+        results = processAnd(results, docs)
+    return results
+
+def processOr(posting1, posting2):
+    results = []
+    i = 0
+    j = 0
+    while i <= len(posting1) and j <= len(posting2):
+        if i == len(posting1):  # if we reached the end of posting1, we append the rest of posting2 to the results
+            results += posting2[j:]
+            break
+        elif j == len(posting2):  # if we reached the end of posting1, we append the rest of posting1 to the results
+            results += posting1[i:]
+            break
+        elif posting1[i] == posting2[j]:  # if they have the same ID, append and increment both pointers
+            results.append(posting1[i])
+            i += 1
+            j += 1
+        elif posting1[i] > posting2[j]:  # if posting1 is larger, append and increment pointer j
+            results.append(posting2[j])
+            j += 1
+        else:  # posting2 is larger, append and increment pointer i
+            results.append(posting1[i])
+            i += 1
+    return results
+
+def getdocdict(term, dic, posting):
+    termtfs[term] = {}
+    startOffset = dic['content'][term]['s']
+    posting.seek(startOffset, 0)
+    termdict = eval(posting.readline())
+    for ids in termdict.keys():
+        termtfs[term][ids] = termdict[ids]['tf']
+    return termdict
+
+def findLtcLnc(docId, listofterms, query_ltc):
+    score = 0
+    L2 = L2norm()
+    for term in listofterms:
+        ltc = query_ltc[term]
+        lnc = termtfs[term][docId]
+        score += (ltc * lnc)
+
 
 def search(dictionary,postings,queries,output):
-
-
 #   This is the main function that returns the query results and write it to the output file. 
 #   It also has cachers instantiated to cache both the query results.
-    global p
     d = json.load(open(dictionary,'r'))
     p = open(postings,'r')
 
@@ -161,69 +213,23 @@ def search(dictionary,postings,queries,output):
         with open(output,'w') as o:
             print("Querying...")
             for query in q.read().splitlines():
-                query = query.replace('"', ' ') #remove the quotation
-                query_n = clean_query_nonphrasal(query)
-                query_f = clean_query_phrasal(query)
+                docid = processQuery(query, d, p)
                 #print ("non: " + str(query_n))
-                print ("phrasal: " + str(query_f))
-                
-                query_ltc = queryscore_nonphrasal(query,d)
-                
+                query = query.replace('""', "")
+                listofterms = clean_query_nonphrasal(query)
+                listofphrase = [i for i in clean_query_phrasal(query) if len(i) > 1]
+                query_ltc = queryscore_nonphrasal(query, d, len(d['docids']))
                 result = {}
-                phrasalList = []
-                termtfs = {}
-                docids = sorted(map(int,d['docids']))
-                for term in query_n:
-                    if term in d['content']:
-                        #print(term)
-                        
-                        offset = d['content'][term]['s']
-                        p.seek(offset, 0)
-                        termFound = p.readline() #this returns a string, not a dict
-                        termFound = eval(termFound) # in dictionary form
-                        idsForTerm = termFound.keys()
-                        new = sorted(map(int,idsForTerm)) 
-                        docids = processAnd(docids,new) # the key idf will be present
-                        #docids = mergeAND(docids,new)
-                        
-                        termtfs[term] = {}
-                        for ids in idsForTerm:
-                            termtfs[term][ids] = termFound[ids]['tf']
-
-
-                # docids = map(str,docids)
-                N = len(d['docids'])
-                for term in query_n:
-                    for docid in list(docids):
-                        # print("current docid: " + docid)
-                        try:
-                            if docid in termtfs[term].keys():
-                                if docid not in result:
-                                    result[docid] = termtfs[term][docid] * idf(len(termtfs[term].keys()),N) * query_ltc[term] #tfidf of term * tf of query
-
-                                else:
-                                    result[docid] += termtfs[term][docid] * idf(len(termtfs[term].keys()),N) * query_ltc[term] #tfidf of term * tf of query
-                        except:
-                            continue            
-
-                #after the normal tf-idf, we handle for phrasal query.
-                afterPhrasalQuery = []
-                for item in query_f:
-                    print("len of current query item...")
-                    print(len(item))
-                    if (len(item) == 1):
-                        continue
-                    else:
-                        for i in range(0, len(item)-1, 2):
-                            
-                            afterPhrasalQuery = phrasalQuery(item[i], item[i+1], docids, d, p)    
-
-                    #if size is 1, skip, else, perform check2 by 2
-                print("should be...? " + str(afterPhrasalQuery))
-                heap = [(value, key) for key,value in result.items()]
+                docids = processQuery(query, d, p)
+                heap = []
+                for doc in docids:
+                    score = findLtcLnc(doc, listofterms, query_ltc)
+                    for phrase in listofphrase:
+                        score *= phrasalQuery(phrase, d, p, doc)
+                    heapq.heappush(heap, [score, doc])
                 # get the top 10 document id based on the lnc.ltc score # need to use another method to determine output
                 result = heapq.nlargest(40, heap)
-                result = [(key,value) for value, key in result]
+                result = [(key, value) for value, key in result]
                 result = ' '.join(map(str,[i[0] for i in result]))
                 print("results: " + result)
                 o.write(result + '\n')
@@ -311,7 +317,7 @@ if dictionary_file == None or postings_file == None or file_of_queries == None o
     sys.exit(2)
 
 start = time.time()
-search(dictionary_file,postings_file,file_of_queries,output_results)
+search(dictionary_file, postings_file, file_of_queries, output_results)
 end = time.time()
 print("Time taken: " + str(end-start))
 
