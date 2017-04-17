@@ -162,17 +162,21 @@ def search(dictionary,postings,queries,output):
             print("Querying...")
             for query in q.read().splitlines():
                 query = query.replace('"', ' ') #remove the quotation
-                query = clean_query_nonphrasal(query)
+                query_n = clean_query_nonphrasal(query)
+                query_f = clean_query_phrasal(query)
+                #print ("non: " + str(query_n))
+                print ("phrasal: " + str(query_f))
+                
                 query_ltc = queryscore_nonphrasal(query,d)
                 
                 result = {}
                 phrasalList = []
                 termtfs = {}
                 docids = sorted(map(int,d['docids']))
-                for term in query:
+                for term in query_n:
                     if term in d['content']:
-                        print(term)
-                        #new = list(d['content'][term].keys())\
+                        #print(term)
+                        
                         offset = d['content'][term]['s']
                         p.seek(offset, 0)
                         termFound = p.readline() #this returns a string, not a dict
@@ -181,6 +185,7 @@ def search(dictionary,postings,queries,output):
                         new = sorted(map(int,idsForTerm)) 
                         docids = processAnd(docids,new) # the key idf will be present
                         #docids = mergeAND(docids,new)
+                        
                         termtfs[term] = {}
                         for ids in idsForTerm:
                             termtfs[term][ids] = termFound[ids]['tf']
@@ -188,7 +193,7 @@ def search(dictionary,postings,queries,output):
 
                 # docids = map(str,docids)
                 N = len(d['docids'])
-                for term in query:
+                for term in query_n:
                     for docid in list(docids):
                         # print("current docid: " + docid)
                         try:
@@ -201,6 +206,20 @@ def search(dictionary,postings,queries,output):
                         except:
                             continue            
 
+                #after the normal tf-idf, we handle for phrasal query.
+                afterPhrasalQuery = []
+                for item in query_f:
+                    print("len of current query item...")
+                    print(len(item))
+                    if (len(item) == 1):
+                        continue
+                    else:
+                        for i in range(0, len(item)-1, 2):
+                            
+                            afterPhrasalQuery = phrasalQuery(item[i], item[i+1], docids, d, p)    
+
+                    #if size is 1, skip, else, perform check2 by 2
+                print("should be...? " + str(afterPhrasalQuery))
                 heap = [(value, key) for key,value in result.items()]
                 # get the top 10 document id based on the lnc.ltc score # need to use another method to determine output
                 result = heapq.nlargest(40, heap)
@@ -213,9 +232,10 @@ def search(dictionary,postings,queries,output):
 
 # method to check if the 2 words are next to each other in the same document
 # parses in the 2 postings of the 2 queried words. 
-# pass in the  list of docID that contains term A and B (found using MergeAnd method)
+# pass in the list of docID that contains term A and B (found using MergeAnd method)
 # then within each doc, check if A and B are next to each other
-def phrasalQuery(term1, term2, docIDs, pFile):
+def phrasalQuery(term1, term2, docIDs, dic, pFile):
+    print("################# commencing phrasal query now ################")
     postingsResultsList = []
 
     for id in docIDs:
@@ -223,16 +243,23 @@ def phrasalQuery(term1, term2, docIDs, pFile):
         start = dic['content'][term1]['s']
         pFile.seek(start, 0)
         #list of pos of term1 in docID id.
-        r1 = pFile.readLine()
-        
+        r1 = pFile.readline()
+        r1 = eval(r1) #convert to python dictionary form
+
         #is this the correct way to fetch the positional index?
-        positions1 = r1['index']
+        positions1 = r1[id]['index']
 
         start = dic['content'][term2]['s']
         pFile.seek(start, 0)
         #list of pos of term2 in docID id.
-        r2 = pFile.readLine()
-        positions2 = r2['index']
+        r2 = pFile.readline()
+        r2 = eval(r2)
+        positions2 = r2[id]['index']
+
+        print(positions1)
+        print(type(positions1))
+        print(positions2)
+        print(type(positions2))
 
         k = 0
         while(k < len(positions1)):
@@ -240,8 +267,10 @@ def phrasalQuery(term1, term2, docIDs, pFile):
             while(l < len(positions2)):
                 #abs or strictly 1? can't even test when my indexing has issue =.=
                 dist = abs(positions1[k] - positions2[l])
+                print("dist:" +str(dist))
                 if (dist == 1):
                     postingsResultsList.append(l)
+                    print(postingsResultsList)
                 elif (positions2[l] > positions1[k]):
                     break
                 l += 1        
@@ -250,7 +279,7 @@ def phrasalQuery(term1, term2, docIDs, pFile):
                 if (dist > 1):
                     postingsResultsList.remove(item)
                 k += 1         
-
+    print ("############### lalala: " + str(postingsResultsList) + "##############")
     return postingsResultsList           
 
 
