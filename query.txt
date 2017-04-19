@@ -2,11 +2,3 @@ intentional tort AND remoteness of damage
 murder AND provocation AND loss of self-control
 commercial unfairness AND legitimate expectations
 financial assistance AND purpose
-
-
-[i for i in clean_query_phrasal(query) if len(i)>1 ]
-
-Positions1 = map(lambda x:x+1, postitions1)
-
-result = sorted(heap, key = lambda x: x[0], reverse=True)
-result = [I[1] for I in result]
