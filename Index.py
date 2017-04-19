@@ -17,9 +17,7 @@ stemmer = PorterStemmer()
 
 # This function is used to calculate the logarithmic term frequency
 def tf(count):
-	"""
-		Returns 1 + log(raw term frequency) if the term is present else 0
-	"""
+# Returns 1 + log(raw term frequency) if the term is present else 0
     if count > 0:
         return 1 + math.log10(count)
     else:
@@ -29,17 +27,15 @@ def tf(count):
 # docfreq = number of documents in which the term appears
 # totaldocs = total number of documents in the collection
 def idf(docfreq,totaldocs):
-    """
-		Returns the inverse document frequency of a term
-    """
+#Returns the inverse document frequency of a term
+
     return math.log10(totaldocs/docfreq)
 
 # This function is used to calculate the L2 norm. It takes in a list of logarithmic term frequency of the terms in a document
 # i.e. [tf(term1), tf(term2), ...]
 def L2norm(k):
-	"""
-		Returns the L2 norm of a document
-	"""
+#Returns the L2 norm of a document
+
     return math.sqrt(sum(map(lambda x:x**2 if x>0 else 0,k)))
 
 # This function is used to write the metadata to the postings file and store the starting byte of the postings file in the dictionary file
@@ -49,10 +45,8 @@ def L2norm(k):
 # index = the dictionary that will be stored in the dictionary file
 # key= the name of the data stored, e.g. tag, areaoflaw etc
 def storein_metadata(postings_file,metadata,index,key):
-    
-    """
-    Returns a dictionary with the relevant starting byte of the metadata in the postings file
-    """
+#Returns a dictionary with the relevant starting byte of the metadata in the postings file
+
 
     index[key] = {} #instantiate an empty dictionary for the name of data (i.e. tag, areaoflaw etc)
     
@@ -105,10 +99,8 @@ def store_title1(posting_file,title,index,key):
 # It takes in one parameter: 
 # path: filepath of the document
 def extract_info1(path):
+#Returns a dictionary with the tag,content,title,areaoflaw,dateposted,court,jury data of a document
 
-	"""
-	Returns a dictionary with the tag,content,title,areaoflaw,dateposted,court,jury data of a document
-	"""
     print(path) # we print the filepath as a sign to know that the code is running
     A_tags = {} # dictonary to store all the <tags> data
     A_content = {} # dictonary to store all the <content> data
@@ -200,9 +192,8 @@ def extract_info1(path):
 # This function is used to clean the text
 # It takes in one param: text = the string of text to be cleaned 
 def clean_content(text):
-    """
-	Returns a list of cleaned terns
-    """
+#Returns a list of cleaned terns
+
     chars = string.punctuation + '”' + '’' + '“' + '…' # punctuations to be removed
     
     text = text.lower() #lowercase
@@ -223,10 +214,8 @@ def clean_content(text):
 # This function is used to stem the tags data
 #  It takes in a list of tags
 def stemmed_tags(tags):
+#Returns a list of cleaned tags
 
-	"""
-	Returns a list of cleaned tags
-	"""
     result = []
     for tag in tags:
         words = tag.split() # split by space
@@ -310,10 +299,8 @@ def wordify(word):
 # postings_file = name of postings file 
 
 def make_dictionary(directory,dictionary_file,postings_file):
+#It does not return anything but it creates a dictionary file and postings file
 
-	"""
-		It does not return anything but it creates a dictionary file and postings file
-	"""
     if directory[-1]!='/': # check if theres a trailing slash in the directory
         directory = directory+'/' 
         
