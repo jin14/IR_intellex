@@ -8,12 +8,16 @@ import math
 import sys
 import getopt
 import time
+from time import gmtime, strftime
 import string
 
 stemmer = PorterStemmer()
 termtfs = {}
 termDict ={}
+othermetadata = {}
 
+#method to check if the two positions are next to each other.
+#utilises the processAnd function
 def processPhrasal(positions1, positions2):
     result = []
 
@@ -21,8 +25,10 @@ def processPhrasal(positions1, positions2):
     result = processAnd(positions1, positions2)
     return result
 
+#method to check if the phrase appears in the document
+#list is the phrase, dic, pFile is dictionary&postings, id is the id of doc to be checked.
 def phrasalQuery(list, dic, pFile, id):
-    #print("################# commencing phrasal query now ################")
+    #a phrase only contains 2/3 words.
     resultsList = []
     length = len(list)
     if(length == 2):
@@ -45,7 +51,6 @@ def phrasalQuery(list, dic, pFile, id):
     if(length == 3):
         r1 = getdocdict(list[0], dic, pFile)
         try:
-            #list of pos of term1 in docID id.
             positions1 = r1[id]['index']
         except KeyError:
             positions1 = []
@@ -56,7 +61,7 @@ def phrasalQuery(list, dic, pFile, id):
             positions2 = []
         r3 = getdocdict(list[2], dic, pFile)
         try:
-            #list of pos of term1 in docID id.
+            #list of pos of term3 in docID id.
             positions3 = r3[id]['index']
         except KeyError:
             positions3 = []
@@ -69,13 +74,14 @@ def phrasalQuery(list, dic, pFile, id):
     #print("tfphrasal: " + str(freq))       
     return phrasalQueryTF  
 
+#pre-process the non-phrasal version of the query. words are stored individually into a list.
 def clean_query_nonphrasal(text):   
     output = []
     for query in text.split(' AND '):
         output.extend([stemmer.stem(i.lower()) for i in query.split() if  stemmer.stem(i.lower())])
     return output
 
-
+#pre-process the phrasal version of the query. Phrase/word delimited by 'AND' will be stored in a list
 def clean_query_phrasal(text):
     output = []
     for query in text.split(' AND '):
@@ -84,21 +90,23 @@ def clean_query_phrasal(text):
         
     return output
 
+#utility function
 def tf(count):
 	# calculate the logarithmic term frequency
     if count > 0:
         return 1 + math.log10(count)
     else:
         return 0
-
+#utility function
 def L2norm(k):
 	# compute the L2 norm of the term
     return math.sqrt(sum(map(lambda x:x**2 if x>0 else 0,k)))
-
+#utility function
 def idf(docfreq,totaldocs):
     # compute the inverse document frequency score
     return math.log10(totaldocs/docfreq)
 
+#computes the lnc.ltc
 def queryscore_nonphrasal(query, d, total):
 
     queryD = Counter(query)
@@ -115,6 +123,7 @@ def queryscore_nonphrasal(query, d, total):
      
 
     return queryD
+
 #From our homework 2 code    
 def processAnd(posting1, posting2):
     results = []
@@ -208,6 +217,9 @@ def skipintersectionAND(left,right):
         
     return result
 
+#process the query by getting the phrases (delimited by 'AND'),
+#retrieve the document ids for the phrases
+#if length of phrase > 1, 
 def processQuery(query, dic, posting):
     listofdocs = []
     listofphrase = clean_query_phrasal(query)
@@ -246,7 +258,8 @@ def processOr(posting1, posting2):
             results.append(posting1[i])
             i += 1
     return results
-
+#retrieve the document ids and corresponding tfs of the term
+#from postings file, return in the form of python dictionary.
 def getdocdict(term, dic, posting):
     if term in termDict:
         return termDict[term]
@@ -261,9 +274,18 @@ def getdocdict(term, dic, posting):
     termDict[term] = termdict    
     return termdict
 
+
+#retrieve the tags and areaoflaw in the document
+#returns a list containing the tokenized tags and areaoflaw
+def getOtherMetaData(dic, posting):
+    areaoflaw = list(dic['areaoflaw'].keys())
+    tags = list(dic['tags'].keys())     
+    return (areaoflaw + tags)
+
+#compute the lnc.ltc score
 def findLtcLnc(docId, listofterms, query_ltc):
     score = 0
-    print(listofterms)
+    #print(listofterms)
     for term in listofterms:
         try:
             ltc = query_ltc[term]
@@ -274,65 +296,111 @@ def findLtcLnc(docId, listofterms, query_ltc):
 
 
     return score
+#computes the score multiplier for the date_posted
+#the closer the date_posted to the current date, the higher the multiplier    
+def computeDateMultiplier(diff):
+    mul = 0
+    if diff < 180:
+        mul = 1.2
+    elif (180 < diff and diff < 360):
+        mul = 1.15
+    elif (360<diff and diff<720):
+        mul = 1.1
+    elif (720<diff and diff<1080):
+        mul = 1.05    
+    else:
+        mul = 1
 
+    return mul
+                   
 def search(dictionary,postings,queries,output):
 #   This is the main function that returns the query results and write it to the output file. 
 #   It also has cachers instantiated to cache both the query results.
     d = json.load(open(dictionary,'r'))
     p = open(postings,'r')
+    metadata = d['metadata'] # get metadata (date posted, juristication, court)
+
+
+    now = strftime("%Y-%m-%d", gmtime())
+    now = now.replace('-', "")
+    print (now)
+
+    #get list of keys for dict of tags & areaoflaw
+    tag_areaoflaw = getOtherMetaData(d, p)
 
     with open(queries) as q:
         with open(output,'w') as o:
             print("Querying...")
             for query in q.read().splitlines():
                 query = query.replace('"', "")
-
-                #print ("non: " + str(query_n))
                 
-                start = time.time()
+                #start = time.time()
                 listofterms = clean_query_nonphrasal(query)
-                end = time.time()
-                print("listofterm: " +str(end-start))
+                #for t in listofterms:
+                    #if t in theDict.keys():
+                        #retrieve doc ids
+                #end = time.time()
+                #print("listofterm: " +str(end-start))
 
                 listofphrase = [i for i in clean_query_phrasal(query) if len(i) > 1]
 
-                start = time.time()
+                #start = time.time()
                 query_ltc = queryscore_nonphrasal(listofterms, d, len(d['docids']))
-                end = time.time()
-                print("nonphrasal: " +str(end-start))
+                #end = time.time()
+                #print("nonphrasal: " +str(end-start))
 
                 result = {}
-                start = time.time()
+                #start = time.time()
                 docids = processQuery(query, d, p)
-                end = time.time()
-                print("process query: " +str(end-start))
+                #end = time.time()
+                #print("process query: " +str(end-start))
 
                 heap = []
                 for doc in docids:
-                    start = time.time()
+                    #start = time.time()
                     score = findLtcLnc(doc, listofterms, query_ltc)
-                    end = time.time()
-                    print("ltclnc: " +str(end-start))
+                    #end = time.time()
+                    #print("ltclnc: " +str(end-start))
 
-                    print("score:" + str(score))
+                    print("score after lncltc:" + str(score))
 
-                    start = time.time()
+                    #start = time.time()
                     for phrase in listofphrase:
                         score += phrasalQuery(phrase, d, p, doc)
-                        print("score after using phrasal:" + str(score))
-                    end = time.time()
-                    print("phrasalQuery: " +str(end-start))    
+                        #print("score after using phrasal:" + str(score))
+                    #end = time.time()
+
+                    #print("phrasalQuery: " +str(end-start)) 
+
+                    #if juristication is singapore, we deem the document as being more important
+                    juryList = list(metadata[str(doc)]['jury']) 
+                    for jury in juryList:
+                        if jury == "SG":
+                            score *= 1.2
+
+
+                    #check dateposted
+                    date = str(metadata[str(doc)]['date_posted'])
+                    date = date.replace('-', "")
+                    #print(str(doc))
+                    
+                    diff = int(now) - int(date)
+                    #print("diff " + str(diff))
+                    mul = computeDateMultiplier(diff)
+                    score *= mul
+
                     heap.append([score, doc])
-                # get the top 10 document id based on the lnc.ltc score # need to use another method to determine output
+                # get the top 40 document id based on the lnc.ltc score # need to use another method to determine output
                 result = sorted(heap, key=lambda x: x[0], reverse=True)
                 result = result[:40]
-                
+                #total = sum(result)
+                #mean = total/len(result)
+                #print (mean)
                 result = ' '.join(map(str,[i[1] for i in result]))
                 print("results: " + result)
                 o.write(result + '\n')
                                            
     p.close()
-
 
 
 
@@ -366,4 +434,3 @@ search(dictionary_file, postings_file, file_of_queries, output_results)
 end = time.time()
 print("Time taken: " + str(end-start))
 
-#
