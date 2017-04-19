@@ -90,6 +90,16 @@ def clean_query_phrasal(text):
         
     return output
 
+def clean_query_heuristic(query):
+    result = []
+    for phrase in query.split(' AND '):
+        words = phrase.split() # split by space
+        words = [stemmer.stem(word.lower()) for word in words] # stem and lowercase the tags
+        
+        result.append(' '.join(words))
+        
+    return result
+
 #utility function
 def tf(count):
 	# calculate the logarithmic term frequency
@@ -275,12 +285,6 @@ def getdocdict(term, dic, posting):
     return termdict
 
 
-#retrieve the tags and areaoflaw in the document
-#returns a list containing the tokenized tags and areaoflaw
-def getOtherMetaData(dic, posting):
-    areaoflaw = list(dic['areaoflaw'].keys())
-    tags = list(dic['tags'].keys())     
-    return (areaoflaw + tags)
 
 #compute the lnc.ltc score
 def findLtcLnc(docId, listofterms, query_ltc):
@@ -312,21 +316,24 @@ def computeDateMultiplier(diff):
         mul = 1
 
     return mul
-                   
+
 def search(dictionary,postings,queries,output):
 #   This is the main function that returns the query results and write it to the output file. 
 #   It also has cachers instantiated to cache both the query results.
     d = json.load(open(dictionary,'r'))
     p = open(postings,'r')
     metadata = d['metadata'] # get metadata (date posted, juristication, court)
-
-
+    usefulAreaOfLaw = []
+    usefulTags = []
+    c = 0
     now = strftime("%Y-%m-%d", gmtime())
     now = now.replace('-', "")
-    print (now)
+    
 
     #get list of keys for dict of tags & areaoflaw
-    tag_areaoflaw = getOtherMetaData(d, p)
+    areaoflaw = list(d['areaoflaw'].keys())
+    tags = list(d['tags'].keys())  
+    tag_areaoflaw = areaoflaw+tags
 
     with open(queries) as q:
         with open(output,'w') as o:
@@ -343,6 +350,23 @@ def search(dictionary,postings,queries,output):
                 #print("listofterm: " +str(end-start))
 
                 listofphrase = [i for i in clean_query_phrasal(query) if len(i) > 1]
+
+                #the listofphrases below is for heuristic consideration
+                #stores the entire phrase as an element in the list
+                listofphrases = clean_query_heuristic(query)
+                for phrase in tag_areaoflaw:
+
+                    if phrase in listofphrases:
+                        #if found in the query, find all docs that has that in postings
+                        if phrase in areaoflaw:
+                            offset = d['areaoflaw'][phrase]['start']
+                            p.seek(offset, 0)
+                            usefulAreaOfLaw = eval(p.readline())
+                        if phrase in tags:                            
+                            offset = d['tags'][phrase]['start']
+                            p.seek(offset, 0)
+                            usefulTags = eval(p.readline())
+                            
 
                 #start = time.time()
                 query_ltc = queryscore_nonphrasal(listofterms, d, len(d['docids']))
@@ -362,7 +386,7 @@ def search(dictionary,postings,queries,output):
                     #end = time.time()
                     #print("ltclnc: " +str(end-start))
 
-                    print("score after lncltc:" + str(score))
+                    #print("score after lncltc:" + str(score))
 
                     #start = time.time()
                     for phrase in listofphrase:
@@ -379,6 +403,23 @@ def search(dictionary,postings,queries,output):
                             score *= 1.2
 
 
+                    #view the doc being more relevant if the doc id has the areaoflaw (present in query)
+                    for ids in usefulAreaOfLaw:
+                        print("target id: " + str(ids))
+                        if (doc == ids):                    
+                            print("got area")
+                            score *= 1.25
+                            c +=1
+
+                    print("current id: " + str(doc))                
+
+                    for ids in usefulTags:
+                        print("target id: " + str(ids))
+                        if (doc == ids):                    
+                            print("got tag")
+                            score *= 1.2
+                            c +=1
+
                     #check dateposted
                     date = str(metadata[str(doc)]['date_posted'])
                     date = date.replace('-', "")
@@ -390,12 +431,11 @@ def search(dictionary,postings,queries,output):
                     score *= mul
 
                     heap.append([score, doc])
+                print("count: " + str(c))    
                 # get the top 40 document id based on the lnc.ltc score # need to use another method to determine output
                 result = sorted(heap, key=lambda x: x[0], reverse=True)
                 result = result[:40]
-                #total = sum(result)
-                #mean = total/len(result)
-                #print (mean)
+
                 result = ' '.join(map(str,[i[1] for i in result]))
                 print("results: " + result)
                 o.write(result + '\n')
