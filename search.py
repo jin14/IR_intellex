@@ -324,7 +324,7 @@ def search(dictionary,postings,queries,output):
                 query_ltc = queryscore_nonphrasal(finalList, d, len(d['docids']))
                 result = {}
                 docids = processQuery(query, d, p)
-
+                print(docids)
                 heap = []
                 for doc in docids:
                     score = findLtcLnc(doc, finalList, query_ltc)
@@ -354,7 +354,6 @@ def search(dictionary,postings,queries,output):
                     diff = int(now) - int(date)
                     mul = computeDateMultiplier(diff)
                     score *= mul
-
                     heap.append([score, doc])  
                 # get the top 40 document id based on the lnc.ltc score # need to use another method to determine output
                 result = sorted(heap, key=lambda x: x[0], reverse=True)
