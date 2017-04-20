@@ -358,14 +358,14 @@ def search(dictionary,postings,queries,output):
                     heap.append([score, doc])  
                 # get the top 40 document id based on the lnc.ltc score # need to use another method to determine output
                 result = sorted(heap, key=lambda x: x[0], reverse=True)
-                print(result)
-                #result = result[:40]
+                
 
                 a = sum([i[0] for i in result])
                 mean = a/len(result)
-
                 result = ' '.join(map(str,[i[1] for i in result if i[0] >= mean]))
-                
+                #result = result[:int((len(result)/4))]
+                #print(len([i[1] for i in result]))
+                #result = ' '.join(map(str,[i[1] for i in result]))
                 o.write(result + '\n')
                                            
     p.close()
