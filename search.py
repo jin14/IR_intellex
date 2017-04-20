@@ -234,6 +234,7 @@ def processQuery(query, dic, posting):
     listofdocs = []
     listofphrase = clean_query_phrasal(query)
     for phrase in listofphrase:
+        print(phrase)
         temp = list(getdocdict(phrase[0], dic, posting).keys())
         if len(phrase) > 1:
             for term in phrase[1:]:
@@ -271,6 +272,7 @@ def processOr(posting1, posting2):
 #retrieve the document ids and corresponding tfs of the term
 #from postings file, return in the form of python dictionary.
 def getdocdict(term, dic, posting):
+
     if term in termDict:
         return termDict[term]
 
@@ -339,6 +341,7 @@ def search(dictionary,postings,queries,output):
         with open(output,'w') as o:
             print("Querying...")
             for query in q.read().splitlines():
+                print(query)
                 query = query.replace('"', "")
                 
                 #start = time.time()
@@ -405,18 +408,18 @@ def search(dictionary,postings,queries,output):
 
                     #view the doc being more relevant if the doc id has the areaoflaw (present in query)
                     for ids in usefulAreaOfLaw:
-                        print("target id: " + str(ids))
+                        # print("target id: " + str(ids))
                         if (doc == ids):                    
-                            print("got area")
+                            # print("got area")
                             score *= 1.25
                             c +=1
 
-                    print("current id: " + str(doc))                
+                    # print("current id: " + str(doc))                
 
                     for ids in usefulTags:
-                        print("target id: " + str(ids))
+                        # print("target id: " + str(ids))
                         if (doc == ids):                    
-                            print("got tag")
+                            # print("got tag")
                             score *= 1.2
                             c +=1
 
@@ -431,7 +434,7 @@ def search(dictionary,postings,queries,output):
                     score *= mul
 
                     heap.append([score, doc])
-                print("count: " + str(c))    
+                # print("count: " + str(c))    
                 # get the top 40 document id based on the lnc.ltc score # need to use another method to determine output
                 result = sorted(heap, key=lambda x: x[0], reverse=True)
                 result = result[:40]

@@ -169,6 +169,7 @@ def extract_info1(path):
             
     
     #title
+    title = clean_content(title)
     for index,term in enumerate(title): 
         if term not in A_title:
             A_title[term] = {docid:[index]} # store the positional index of the terms in the title

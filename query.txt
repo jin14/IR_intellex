@@ -2,7 +2,3 @@ intentional tort AND remoteness of damage
 murder AND provocation AND loss of self-control
 commercial unfairness AND legitimate expectations
 financial assistance AND purpose
-
-
-A = clean_query_phrasal(query)
-Strings = [ ‘ ’.join(i) for i in A]
