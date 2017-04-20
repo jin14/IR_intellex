@@ -10,11 +10,14 @@ import getopt
 import time
 from time import gmtime, strftime
 import string
+from itertools import chain
+from nltk.corpus import wordnet
 
 stemmer = PorterStemmer()
 termtfs = {}
 termDict ={}
 othermetadata = {}
+synonymsList = []
 
 #method to check if the two positions are next to each other.
 #utilises the processAnd function
@@ -118,18 +121,19 @@ def idf(docfreq,totaldocs):
 
 #computes the lnc.ltc
 def queryscore_nonphrasal(query, d, total):
-
     queryD = Counter(query)
-    #print(queryD)
+    
     L2 = L2norm(map(tf, queryD.values()))
     for term in queryD:
+        
         if term in d['content']:
             #queryD[term] = (tf(queryD[term])/L2)* d['content'][term]['idf']
             queryD[term] = (tf(queryD[term]) * idf(len(d['content'][term]), total)/L2)
-            
+            if term in synonymsList:
+                #synonym; half the tf
+                queryD[term] *= 0.5
         else:
             queryD[term] = 0
-            #print(2)
      
 
     return queryD
@@ -170,63 +174,6 @@ def processAnd(posting1, posting2):
     #print( "merge? " + str(results))               
     return results
 
-#JW's code 
-def mergeAND(left,right):
-    bound = 4
-    
-    if len(left)<=bound and len(right)<=bound:
-        result = []
-        while len(left)!=0 and len(right)!=0:
-
-            if left[0] == right[0]:
-                result.append(left[0])
-                left = left[1:]
-                right = right[1:]
-
-            elif left[0]>right[0]:
-                right = right[1:]
-
-            elif left[0]<right[0]:
-                left = left[1:]
-                
-    else:
-        result = skipintersectionAND(left,right)
-    
-    return result
-
-#JW's code 
-def skipintersectionAND(left,right):
-
-# This method imitates the nature of a skiplist. The index will skip if it is a modulo of the (len(list))**0.5
-# It is an intersection method. 
-
-    i = 0
-    j = 0
-    skipI = math.floor(math.sqrt(len(left)))
-    skipJ = math.floor(math.sqrt(len(right)))
-    result = []
-    
-    while len(left)>i and len(right)>j:
-        if left[i] == right[j]:
-            result.append(left[i])
-            i+=1
-            j+=1
-        elif left[i] < right[j]:
-            if not bool(i%skipI) and i+skipI < len(left) and left[i+skipI] <= right[j]:
-                while not bool(i%skipI) and i+skipI < len(left) and left[i+skipI] <= right[j]:
-                    i+=skipI
-            else:
-                i+=1
-        
-        elif left[i] > right[j]:
-            if not bool(j%skipJ) and j+skipJ < len(right) and left[i] >= right[j+skipJ]:
-                while not bool(j%skipJ) and j+skipJ < len(right) and left[i] >= right[j+skipJ]:
-                    j+=skipJ
-            else:
-                j+=1
-        
-    return result
-
 #process the query by getting the phrases (delimited by 'AND'),
 #retrieve the document ids for the phrases
 #if length of phrase > 1, 
@@ -234,7 +181,6 @@ def processQuery(query, dic, posting):
     listofdocs = []
     listofphrase = clean_query_phrasal(query)
     for phrase in listofphrase:
-        print(phrase)
         temp = list(getdocdict(phrase[0], dic, posting).keys())
         if len(phrase) > 1:
             for term in phrase[1:]:
@@ -322,6 +268,11 @@ def computeDateMultiplier(diff):
 
     return mul
 
+def getSynonymsList(term):
+    synonyms = wordnet.synsets(term)
+    synonymsList = list(chain.from_iterable([word.lemma_names() for word in synonyms]))
+    return synonymsList
+
 def search(dictionary,postings,queries,output):
 #   This is the main function that returns the query results and write it to the output file. 
 #   It also has cachers instantiated to cache both the query results.
@@ -330,7 +281,6 @@ def search(dictionary,postings,queries,output):
     metadata = d['metadata'] # get metadata (date posted, juristication, court)
     usefulAreaOfLaw = []
     usefulTags = []
-    c = 0
     now = strftime("%Y-%m-%d", gmtime())
     now = now.replace('-', "")
     
@@ -344,16 +294,14 @@ def search(dictionary,postings,queries,output):
         with open(output,'w') as o:
             print("Querying...")
             for query in q.read().splitlines():
-                print(query)
                 query = query.replace('"', "")
                 
-                #start = time.time()
                 listofterms = clean_query_nonphrasal(query)
-                #for t in listofterms:
-                    #if t in theDict.keys():
-                        #retrieve doc ids
-                #end = time.time()
-                #print("listofterm: " +str(end-start))
+                finalList = list(listofterms)
+                for t in listofterms:
+                    if t not in d['content']:
+                        finalList.extend(getSynonymsList(t))
+
 
                 listofphrase = [i for i in clean_query_phrasal(query) if len(i) > 1]
 
@@ -373,34 +321,16 @@ def search(dictionary,postings,queries,output):
                             p.seek(offset, 0)
                             usefulTags = eval(p.readline())
                             
-
-                #start = time.time()
-                query_ltc = queryscore_nonphrasal(listofterms, d, len(d['docids']))
-                #end = time.time()
-                #print("nonphrasal: " +str(end-start))
-
+                query_ltc = queryscore_nonphrasal(finalList, d, len(d['docids']))
                 result = {}
-                #start = time.time()
                 docids = processQuery(query, d, p)
-                #end = time.time()
-                #print("process query: " +str(end-start))
 
                 heap = []
                 for doc in docids:
-                    #start = time.time()
-                    score = findLtcLnc(doc, listofterms, query_ltc)
-                    #end = time.time()
-                    #print("ltclnc: " +str(end-start))
+                    score = findLtcLnc(doc, finalList, query_ltc)
 
-                    #print("score after lncltc:" + str(score))
-
-                    #start = time.time()
                     for phrase in listofphrase:
                         score += phrasalQuery(phrase, d, p, doc)
-                        #print("score after using phrasal:" + str(score))
-                    #end = time.time()
-
-                    #print("phrasalQuery: " +str(end-start)) 
 
                     #if juristication is singapore, we deem the document as being more important
                     juryList = list(metadata[str(doc)]['jury']) 
@@ -411,40 +341,29 @@ def search(dictionary,postings,queries,output):
 
                     #view the doc being more relevant if the doc id has the areaoflaw (present in query)
                     for ids in usefulAreaOfLaw:
-                        # print("target id: " + str(ids))
                         if (doc == ids):                    
-                            # print("got area")
                             score *= 1.25
-                            c +=1
-
-                    # print("current id: " + str(doc))                
 
                     for ids in usefulTags:
-                        # print("target id: " + str(ids))
                         if (doc == ids):                    
-                            # print("got tag")
                             score *= 1.2
-                            c +=1
 
                     #check dateposted
                     date = str(metadata[str(doc)]['date_posted'])
                     date = date.replace('-', "")
-                    #print(str(doc))
-                    
                     diff = int(now) - int(date)
-                    #print("diff " + str(diff))
                     mul = computeDateMultiplier(diff)
                     score *= mul
 
-                    heap.append([score, doc])
-                print("count: " + str(c))    
+                    heap.append([score, doc])  
                 # get the top 40 document id based on the lnc.ltc score # need to use another method to determine output
                 result = sorted(heap, key=lambda x: x[0], reverse=True)
                 result = result[:40]
 
+                #a = sum(i for i in result)
+                #print(a)
                 result = ' '.join(map(str,[i[1] for i in result]))
                 print("results: " + result)
-                print(len(result))
                 o.write(result + '\n')
                                            
     p.close()
