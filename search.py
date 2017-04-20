@@ -277,7 +277,10 @@ def getdocdict(term, dic, posting):
         return termDict[term]
 
     termtfs[term] = {}
-    startOffset = dic['content'][term]['s']
+    try:
+        startOffset = dic['content'][term]['s']
+    except KeyError:
+        return termtfs[term]
     posting.seek(startOffset, 0)
     termdict = eval(posting.readline())
     for ids in termdict.keys():
@@ -434,13 +437,14 @@ def search(dictionary,postings,queries,output):
                     score *= mul
 
                     heap.append([score, doc])
-                # print("count: " + str(c))    
+                print("count: " + str(c))    
                 # get the top 40 document id based on the lnc.ltc score # need to use another method to determine output
                 result = sorted(heap, key=lambda x: x[0], reverse=True)
                 result = result[:40]
 
                 result = ' '.join(map(str,[i[1] for i in result]))
                 print("results: " + result)
+                print(len(result))
                 o.write(result + '\n')
                                            
     p.close()
