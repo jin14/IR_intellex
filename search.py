@@ -292,7 +292,7 @@ def search(dictionary,postings,queries,output):
 
     with open(queries) as q:
         with open(output,'w') as o:
-            print("Querying...")
+            #print("Querying...")
             for query in q.read().splitlines():
                 query = query.replace('"', "")
                 
@@ -358,12 +358,13 @@ def search(dictionary,postings,queries,output):
                     heap.append([score, doc])  
                 # get the top 40 document id based on the lnc.ltc score # need to use another method to determine output
                 result = sorted(heap, key=lambda x: x[0], reverse=True)
-                result = result[:40]
+                #result = result[:40]
 
-                #a = sum(i for i in result)
-                #print(a)
-                result = ' '.join(map(str,[i[1] for i in result]))
-                print("results: " + result)
+                a = sum([i[0] for i in result])
+                mean = a/len(result)
+
+                result = ' '.join(map(str,[i[1] for i in result if i[0] >= mean]))
+                
                 o.write(result + '\n')
                                            
     p.close()
