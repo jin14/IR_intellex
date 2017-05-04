@@ -321,7 +321,7 @@ def search(dictionary,postings,queries,output):
                         if phrase in tags:                            
                             offset = d['tags'][phrase]['start']
                             p.seek(offset, 0)
-                            usefulTags = eval(p.readline())
+                            usefulTags = list(eval(p.readline()))
                             
                 query_ltc = queryscore_nonphrasal(finalList, d, len(d['docids']))
                 result = {}
@@ -361,7 +361,11 @@ def search(dictionary,postings,queries,output):
                 
 
                 a = sum([i[0] for i in result])
-                mean = a/len(result)
+                
+                if(len(result) > 0):
+                	mean = a/len(result)
+                else:
+                	mean = 0
                 result = ' '.join(map(str,[i[1] for i in result if i[0] >= mean]))
                 #result = result[:int((len(result)/4))]
                 #print(len([i[1] for i in result]))
