@@ -73,8 +73,7 @@ def phrasalQuery(list, dic, pFile, id):
     #compute tf now
     freq = len(resultsList)
 
-    phrasalQueryTF = tf(freq)  
-    #print("tfphrasal: " + str(freq))       
+    phrasalQueryTF = tf(freq)
     return phrasalQueryTF  
 
 #pre-process the non-phrasal version of the query. words are stored individually into a list.
@@ -191,6 +190,7 @@ def processQuery(query, dic, posting):
     results = listofdocs[0]
     for docs in listofdocs[1:]:
         results = processAnd(results, docs)
+
     return results
 
 def processOr(posting1, posting2):
@@ -268,6 +268,8 @@ def computeDateMultiplier(diff):
 
     return mul
 
+# gets a list of synonyms of the term using nltk wordnet.
+# This is used when the term in the query is not found in the dictionary.
 def getSynonymsList(term):
     synonyms = wordnet.synsets(term)
     synonymsList = list(chain.from_iterable([word.lemma_names() for word in synonyms]))
@@ -324,7 +326,6 @@ def search(dictionary,postings,queries,output):
                 query_ltc = queryscore_nonphrasal(finalList, d, len(d['docids']))
                 result = {}
                 docids = processQuery(query, d, p)
-                print(docids)
                 heap = []
                 for doc in docids:
                     score = findLtcLnc(doc, finalList, query_ltc)
@@ -399,5 +400,5 @@ if dictionary_file == None or postings_file == None or file_of_queries == None o
 start = time.time()
 search(dictionary_file, postings_file, file_of_queries, output_results)
 end = time.time()
-print("Time taken: " + str(end-start))
 
+# python search.py -d finaldict.txt -p finalpost.txt -q query.txt -o output.txt
